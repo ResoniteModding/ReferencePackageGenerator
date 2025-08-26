@@ -37,9 +37,9 @@ namespace ReferencePackageGenerator
         [JsonIgnore]
         public Regex[] Excludes { get; private set; } = [];
 
-        public string IconPath { get; set; }
+        public string IconPath { get; set; } = string.Empty;
 
-        public string IconUrl { get; set; }
+        public string IconUrl { get; set; } = string.Empty;
 
         public string[] IncludePatterns
         {
@@ -68,7 +68,7 @@ namespace ReferencePackageGenerator
 
         public string[] Tags { get; set; } = [];
 
-        public string TargetFramework { get; set; }
+        public string TargetFramework { get; set; } = string.Empty;
 
         public bool SinglePackageMode { get; set; } = false;
 
@@ -81,9 +81,9 @@ namespace ReferencePackageGenerator
         public Version VersionBoost { get; set; } = new();
 
         [JsonIgnore]
-        public Dictionary<string, Version> VersionOverrides { get; set; }
+        public Dictionary<string, Version> VersionOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public string VersionReleaseLabel { get; set; }
+        public string VersionReleaseLabel { get; set; } = string.Empty;
 
         [JsonProperty(nameof(SinglePackageVersion))]
         private string? SinglePackageVersionString
