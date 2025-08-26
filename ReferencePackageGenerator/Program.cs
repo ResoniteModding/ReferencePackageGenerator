@@ -279,6 +279,23 @@ $@"using System.Runtime.CompilerServices;
                     builder.AddFiles("", docFile, destinationPath);
             }
 
+            // Check for pdb DebugSymbols
+            var pdbFile = ChangeFileDirectoryAndExtension(target, config.DebugSymbolPath, ".pdb");
+            if (File.Exists(pdbFile))
+            {
+                builder.AddFiles("", pdbFile, destinationPath);
+                Console.WriteLine($"Added DebugSymbols: {Path.GetFileName(pdbFile)}");
+            }
+            else
+            {
+                pdbFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".pdb");
+                if (File.Exists(pdbFile))
+                {
+                    builder.AddFiles("", pdbFile, destinationPath);
+                    Console.WriteLine($"Added DebugSymbols: {Path.GetFileName(pdbFile)}");
+                }
+            }
+
             if (File.Exists(config.IconPath))
             {
                 var iconName = Path.GetFileName(config.IconPath);
