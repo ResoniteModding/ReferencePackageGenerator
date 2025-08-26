@@ -66,6 +66,13 @@ namespace MonkeyLoader.ReferencePackageGenerator
 
         public string TargetFramework { get; set; }
 
+        public bool SinglePackageMode { get; set; } = false;
+
+        public string SinglePackageName { get; set; } = "AllReferences";
+
+        [JsonIgnore]
+        public Version? SinglePackageVersion { get; set; }
+
         [JsonIgnore]
         public Version VersionBoost { get; set; } = new();
 
@@ -73,6 +80,13 @@ namespace MonkeyLoader.ReferencePackageGenerator
         public Dictionary<string, Version> VersionOverrides { get; set; }
 
         public string VersionReleaseLabel { get; set; }
+
+        [JsonProperty(nameof(SinglePackageVersion))]
+        private string? SinglePackageVersionString
+        {
+            get => SinglePackageVersion?.ToString();
+            set => SinglePackageVersion = value is null ? null : new Version(value);
+        }
 
         [JsonProperty(nameof(VersionBoost))]
         private string? VersionBoostString

@@ -7,6 +7,10 @@ using Mono.Cecil;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using NuGet.Protocol;
+using System;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace MonkeyLoader.ReferencePackageGenerator
 {
@@ -50,6 +54,14 @@ namespace MonkeyLoader.ReferencePackageGenerator
             return primary + boost;
         }
 
+        private static int GetPathDepth(string relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath) || relativePath == ".")
+                return 0;
+            
+            return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
+        }
+
         private static string GenerateIgnoresAccessChecksToFile(string target)
         {
             var text =
@@ -61,6 +73,136 @@ $@"using System.Runtime.CompilerServices;
             File.WriteAllText(csFile, text);
 
             return csFile;
+        }
+
+        private static string GenerateCombinedIgnoresAccessChecksToFile(IEnumerable<string> targets, string outputPath)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("using System.Runtime.CompilerServices;");
+            sb.AppendLine();
+
+            foreach (var target in targets)
+            {
+                sb.AppendLine($@"[assembly: IgnoresAccessChecksTo(""{Path.GetFileNameWithoutExtension(target)}"")]");
+            }
+
+            var csFile = Path.Combine(outputPath, "IgnoresAccessChecksToAll.cs");
+            File.WriteAllText(csFile, sb.ToString());
+
+            return csFile;
+        }
+
+        private static async Task GenerateSingleNuGetPackageAsync(Config config, IEnumerable<(string target, AssemblyDefinition assembly)> assemblies)
+        {
+            var builder = new PackageBuilder
+            {
+                Id = $"{config.PackageIdPrefix}{config.SinglePackageName}",
+                Version = new NuGetVersion(config.SinglePackageVersion ?? new Version(1, 0, 0), config.VersionReleaseLabel),
+
+                Title = $"Publicized All References Package",
+                Description = $"Publicized reference package containing all assemblies.",
+
+                IconUrl = string.IsNullOrWhiteSpace(config.IconUrl) ? null : new Uri(config.IconUrl),
+                ProjectUrl = string.IsNullOrWhiteSpace(config.ProjectUrl) ? null : new Uri(config.ProjectUrl),
+                Repository = new RepositoryMetadata(Path.GetExtension(config.RepositoryUrl)?.TrimStart('.'), config.RepositoryUrl, null, null)
+            };
+
+            builder.Authors.AddRange(config.Authors);
+            builder.Tags.AddRange(config.Tags);
+
+            var destinationPath = $"ref/{config.TargetFramework}/";
+            var targets = new List<string>();
+            var addedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (target, assembly) in assemblies)
+            {
+                var fileName = Path.GetFileName(target);
+                
+                // Skip if we've already added a file with this name
+                if (!addedFiles.Add(fileName))
+                {
+                    Console.WriteLine($"Skipping duplicate assembly: {fileName}");
+                    continue;
+                }
+                
+                builder.AddFiles("", target, destinationPath);
+                targets.Add(target);
+
+                // Check for XML documentation
+                var docFileName = Path.GetFileNameWithoutExtension(fileName) + ".xml";
+                if (!addedFiles.Contains(docFileName))
+                {
+                    var docFile = ChangeFileDirectoryAndExtension(target, config.DocumentationPath, ".xml");
+                    if (File.Exists(docFile))
+                    {
+                        builder.AddFiles("", docFile, destinationPath);
+                        addedFiles.Add(docFileName);
+                        Console.WriteLine($"Added documentation: {docFileName}");
+                    }
+                    else
+                    {
+                        docFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".xml");
+                        if (File.Exists(docFile))
+                        {
+                            builder.AddFiles("", docFile, destinationPath);
+                            addedFiles.Add(docFileName);
+                            Console.WriteLine($"Added documentation: {docFileName}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Skipping duplicate documentation: {docFileName}");
+                }
+            }
+
+            if (File.Exists(config.IconPath))
+            {
+                var iconName = Path.GetFileName(config.IconPath);
+                builder.AddFiles("", config.IconPath, iconName);
+                builder.Icon = iconName;
+            }
+
+            var ignoreAccessChecksToPath = GenerateCombinedIgnoresAccessChecksToFile(targets, config.DllTargetPath);
+            builder.AddFiles("", ignoreAccessChecksToPath, "contentFiles/cs/any/IgnoresAccessChecksTo/");
+            builder.AddFiles("", ignoreAccessChecksToPath, "content/IgnoresAccessChecksTo/");
+
+            builder.ContentFiles.Add(new ManifestContentFiles
+            {
+                Include = $"cs/any/IgnoresAccessChecksTo/IgnoresAccessChecksToAll.cs",
+                BuildAction = "compile",
+                Flatten = "false",
+                CopyToOutput = "false"
+            });
+
+            var packagePath = Path.Combine(config.NupkgTargetPath, $"{config.PackageIdPrefix}{config.SinglePackageName}.nupkg");
+            using (var outputStream = new FileStream(packagePath, FileMode.Create))
+                builder.Save(outputStream);
+
+            Console.WriteLine($"Saved single package to {packagePath}");
+
+            if (config.PublishTarget is null || !config.PublishTarget.Publish)
+            {
+                Console.WriteLine("No PublishTarget defined or publishing disabled, skipping package upload.");
+                return;
+            }
+
+            Console.WriteLine($"Publishing package to {config.PublishTarget.Source}");
+
+            var cache = new SourceCacheContext();
+            var repository = Repository.Factory.GetCoreV3(config.PublishTarget.Source);
+            var resource = await repository.GetResourceAsync<PackageUpdateResource>();
+
+            try
+            {
+                await resource.Push(new List<string>() { packagePath }, null, 20, false, source => config.PublishTarget.ApiKey, source => null, false, true, null, ConsoleLogger.Instance);
+                Console.WriteLine("Finished publishing package!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to publish package!");
+                Console.WriteLine(ex.ToString());
+            }
         }
 
         private static async Task GenerateNuGetPackageAsync(Config config, string target, AssemblyDefinition assembly)
@@ -247,22 +389,57 @@ $@"using System.Runtime.CompilerServices;
 
                 Console.WriteLine($"Publicizing matching assembly files from: {config.SourcePath}");
 
-                foreach (var source in config.Search())
+                if (config.SinglePackageMode)
                 {
-                    var target = ChangeFileDirectory(source, config.DllTargetPath);
+                    var assemblies = new List<(string source, string target, AssemblyDefinition assembly)>();
 
-                    try
+                    foreach (var source in config.Search())
                     {
-                        var assembly = publicizer.CreatePublicAssembly(source, target);
-                        Console.WriteLine($"Publicized {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+                        var target = ChangeFileDirectory(source, config.DllTargetPath);
 
-                        GenerateNuGetPackageAsync(config, target, assembly).GetAwaiter().GetResult();
+                        try
+                        {
+                            var assembly = publicizer.CreatePublicAssembly(source, target);
+                            Console.WriteLine($"Publicized {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+                            assemblies.Add((source, target, assembly));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to publicize assembly: {Path.GetFileName(source)}");
+                            Console.WriteLine(ex.ToString());
+                            continue;
+                        }
                     }
-                    catch (Exception ex)
+
+                    if (assemblies.Count > 0)
                     {
-                        Console.WriteLine($"Failed to publicize assembly: {Path.GetFileName(source)}");
-                        Console.WriteLine(ex.ToString());
-                        continue;
+                        // Sort assemblies by distance from SourcePath (closest first)
+                        var sortedAssemblies = assemblies
+                            .OrderBy(a => GetPathDepth(Path.GetRelativePath(config.SourcePath, a.source)))
+                            .Select(a => (a.target, a.assembly));
+                        
+                        GenerateSingleNuGetPackageAsync(config, sortedAssemblies).GetAwaiter().GetResult();
+                    }
+                }
+                else
+                {
+                    foreach (var source in config.Search())
+                    {
+                        var target = ChangeFileDirectory(source, config.DllTargetPath);
+
+                        try
+                        {
+                            var assembly = publicizer.CreatePublicAssembly(source, target);
+                            Console.WriteLine($"Publicized {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+
+                            GenerateNuGetPackageAsync(config, target, assembly).GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to publicize assembly: {Path.GetFileName(source)}");
+                            Console.WriteLine(ex.ToString());
+                            continue;
+                        }
                     }
                 }
             }
