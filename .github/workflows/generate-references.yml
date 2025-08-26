@@ -165,7 +165,7 @@ jobs:
             for package in output/packages/*.nupkg; do
               if [ -f "$package" ]; then
                 echo "Publishing $(basename $package) to NuGet..."
-                dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --skip-duplicate
+                dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
               fi
             done
           else
