@@ -154,6 +154,33 @@ $@"using System.Runtime.CompilerServices;
                 {
                     Console.WriteLine($"Skipping duplicate documentation: {docFileName}");
                 }
+
+                // Check for PDB files
+                var pdbFileName = Path.GetFileNameWithoutExtension(fileName) + ".pdb";
+                if (!addedFiles.Contains(pdbFileName))
+                {
+                    var pdbFile = ChangeFileDirectoryAndExtension(target, config.DllTargetPath, ".pdb");
+                    if (File.Exists(pdbFile))
+                    {
+                        builder.AddFiles("", pdbFile, destinationPath);
+                        addedFiles.Add(pdbFileName);
+                        Console.WriteLine($"Added PDB file: {pdbFileName}");
+                    }
+                    else
+                    {
+                        pdbFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".pdb");
+                        if (File.Exists(pdbFile))
+                        {
+                            builder.AddFiles("", pdbFile, destinationPath);
+                            addedFiles.Add(pdbFileName);
+                            Console.WriteLine($"Added PDB file: {pdbFileName}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Skipping duplicate PDB file: {pdbFileName}");
+                }
             }
 
             if (File.Exists(config.IconPath))
@@ -250,6 +277,23 @@ $@"using System.Runtime.CompilerServices;
                 docFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".xml");
                 if (File.Exists(docFile))
                     builder.AddFiles("", docFile, destinationPath);
+            }
+
+            // Check for PDB file
+            var pdbFile = ChangeFileDirectoryAndExtension(target, config.DllTargetPath, ".pdb");
+            if (File.Exists(pdbFile))
+            {
+                builder.AddFiles("", pdbFile, destinationPath);
+                Console.WriteLine($"Added PDB file: {Path.GetFileName(pdbFile)}");
+            }
+            else
+            {
+                pdbFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".pdb");
+                if (File.Exists(pdbFile))
+                {
+                    builder.AddFiles("", pdbFile, destinationPath);
+                    Console.WriteLine($"Added PDB file: {Path.GetFileName(pdbFile)}");
+                }
             }
 
             if (File.Exists(config.IconPath))
