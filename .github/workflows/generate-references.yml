@@ -12,6 +12,11 @@ on:
         required: false
         default: 'main'
         type: string
+      publish:
+        description: 'publish to nuget'
+        required: false
+        default: false
+        type: bool
   repository_dispatch:
     types: [generate-references]
 
