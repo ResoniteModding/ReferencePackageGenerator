@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "MonkeyLoader.ReferencePackageGenerator": {
-      "commandName": "Project",
-      "commandLineArgs": "Resonite.Unity.json"
-    }
-  }
-}

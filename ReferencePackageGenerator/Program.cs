@@ -12,7 +12,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace MonkeyLoader.ReferencePackageGenerator
+namespace ReferencePackageGenerator
 {
     internal class Program
     {

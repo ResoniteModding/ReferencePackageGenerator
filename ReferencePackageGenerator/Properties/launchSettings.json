@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ReferencePackageGenerator": {
+      "commandName": "Project",
+      "commandLineArgs": "Resonite.json"
+    }
+  }
+}

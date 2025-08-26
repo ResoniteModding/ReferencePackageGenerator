@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MonkeyLoader.ReferencePackageGenerator
+namespace ReferencePackageGenerator
 {
     public class AssemblyResolver : IAssemblyResolver
     {

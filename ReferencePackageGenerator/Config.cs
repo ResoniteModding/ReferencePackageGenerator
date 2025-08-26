@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace MonkeyLoader.ReferencePackageGenerator
+namespace ReferencePackageGenerator
 {
     [JsonObject]
     public class Config
