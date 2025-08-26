@@ -160,7 +160,7 @@ jobs:
             for package in output/packages/*.nupkg; do
               if [ -f "$package" ]; then
                 echo "Publishing $(basename $package) to NuGet..."
-                dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://nuget-modding.resonite.net/v3/index.json --skip-duplicate
+                dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --skip-duplicate
               fi
             done
           else
