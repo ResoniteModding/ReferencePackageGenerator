@@ -14,6 +14,8 @@ namespace ReferencePackageGenerator
     {
         [JsonProperty(nameof(DocumentationPath))]
         private string? _documentationPath = null;
+        [JsonProperty(nameof(DebugSymbolsPath))]
+        private string? _debugSymbolsPath = null;
 
         public string[] Authors { get; set; } = [];
 
@@ -21,6 +23,8 @@ namespace ReferencePackageGenerator
 
         [JsonIgnore]
         public string DocumentationPath => _documentationPath ?? SourcePath;
+        [JsonIgnore]
+        public string DebugSymbolsPath => _debugSymbolsPath ?? SourcePath;
 
         public string[] ExcludePatterns
         {

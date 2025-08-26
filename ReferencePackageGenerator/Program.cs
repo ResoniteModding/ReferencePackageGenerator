@@ -99,8 +99,8 @@ $@"using System.Runtime.CompilerServices;
                 Id = $"{config.PackageIdPrefix}{config.SinglePackageName}",
                 Version = new NuGetVersion(config.SinglePackageVersion ?? new Version(1, 0, 0), config.VersionReleaseLabel),
 
-                Title = $"Publicized All References Package",
-                Description = $"Publicized reference package containing all assemblies.",
+                Title = $"Stripped All References Package",
+                Description = $"Stripped reference package containing all assemblies.",
 
                 IconUrl = string.IsNullOrWhiteSpace(config.IconUrl) ? null : new Uri(config.IconUrl),
                 ProjectUrl = string.IsNullOrWhiteSpace(config.ProjectUrl) ? null : new Uri(config.ProjectUrl),
@@ -153,6 +153,33 @@ $@"using System.Runtime.CompilerServices;
                 else
                 {
                     Console.WriteLine($"Skipping duplicate documentation: {docFileName}");
+                }
+                
+                // Check for pdb DebugSymbols
+                var pdbFileName = Path.GetFileNameWithoutExtension(fileName) + ".pdb";
+                if (!addedFiles.Contains(pdbFileName))
+                {
+                    var pdbFile = ChangeFileDirectoryAndExtension(target, config.DebugSymbolsPath, ".pdb");
+                    if (File.Exists(pdbFile))
+                    {
+                        builder.AddFiles("", pdbFile, destinationPath);
+                        addedFiles.Add(pdbFileName);
+                        Console.WriteLine($"Added DebugSymbols: {pdbFileName}");
+                    }
+                    else
+                    {
+                        pdbFile = ChangeFileDirectoryAndExtension(target, config.SourcePath, ".pdb");
+                        if (File.Exists(pdbFile))
+                        {
+                            builder.AddFiles("", pdbFile, destinationPath);
+                            addedFiles.Add(pdbFileName);
+                            Console.WriteLine($"Added DebugSymbols: {pdbFileName}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Skipping duplicate DebugSymbols: {pdbFileName}");
                 }
             }
 
@@ -218,8 +245,8 @@ $@"using System.Runtime.CompilerServices;
                 Id = $"{config.PackageIdPrefix}{Path.GetFileNameWithoutExtension(target)}",
                 Version = new NuGetVersion(version, config.VersionReleaseLabel),
 
-                Title = $"Publicized {Path.GetFileNameWithoutExtension(target)} Reference",
-                Description = $"Publicized reference package for {Path.GetFileName(target)}.",
+                Title = $"Stripped {Path.GetFileNameWithoutExtension(target)} Reference",
+                Description = $"Stripped reference package for {Path.GetFileName(target)}.",
 
                 IconUrl = string.IsNullOrWhiteSpace(config.IconUrl) ? null : new Uri(config.IconUrl),
                 ProjectUrl = string.IsNullOrWhiteSpace(config.ProjectUrl) ? null : new Uri(config.ProjectUrl),
@@ -361,9 +388,9 @@ $@"using System.Runtime.CompilerServices;
                     continue;
                 }
 
-                var publicizer = new Publicizer();
-                publicizer.Resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-                publicizer.Resolver.AddSearchDirectory(config.SourcePath);
+                var codeStripper = new CodeStripper();
+                codeStripper.Resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
+                codeStripper.Resolver.AddSearchDirectory(config.SourcePath);
 
                 try
                 {
@@ -387,7 +414,7 @@ $@"using System.Runtime.CompilerServices;
                     continue;
                 }
 
-                Console.WriteLine($"Publicizing matching assembly files from: {config.SourcePath}");
+                Console.WriteLine($"Stripping matching assembly files from: {config.SourcePath}");
 
                 if (config.SinglePackageMode)
                 {
@@ -399,13 +426,13 @@ $@"using System.Runtime.CompilerServices;
 
                         try
                         {
-                            var assembly = publicizer.CreatePublicAssembly(source, target);
-                            Console.WriteLine($"Publicized {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+                            var assembly = codeStripper.CreateReferenceAssembly(source, target);
+                            Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
                             assemblies.Add((source, target, assembly));
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Failed to publicize assembly: {Path.GetFileName(source)}");
+                            Console.WriteLine($"Failed to strip assembly: {Path.GetFileName(source)}");
                             Console.WriteLine(ex.ToString());
                             continue;
                         }
@@ -429,14 +456,14 @@ $@"using System.Runtime.CompilerServices;
 
                         try
                         {
-                            var assembly = publicizer.CreatePublicAssembly(source, target);
-                            Console.WriteLine($"Publicized {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+                            var assembly = codeStripper.CreateReferenceAssembly(source, target);
+                            Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
 
                             GenerateNuGetPackageAsync(config, target, assembly).GetAwaiter().GetResult();
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Failed to publicize assembly: {Path.GetFileName(source)}");
+                            Console.WriteLine($"Failed to strip assembly: {Path.GetFileName(source)}");
                             Console.WriteLine(ex.ToString());
                             continue;
                         }

@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 
 namespace ReferencePackageGenerator
 {
-    public class Publicizer
+    public class CodeStripper
     {
         private static readonly Type _compilerGeneratedType = typeof(CompilerGeneratedAttribute);
 
         public AssemblyResolver Resolver { get; } = new();
 
-        public AssemblyDefinition CreatePublicAssembly(string source, string target)
+        public AssemblyDefinition CreateReferenceAssembly(string source, string target)
         {
             var assembly = AssemblyDefinition.ReadAssembly(source,
                 new ReaderParameters { AssemblyResolver = Resolver });
@@ -23,22 +23,6 @@ namespace ReferencePackageGenerator
             {
                 foreach (var type in module.GetTypes())
                 {
-                    if (!type.IsNested)
-                    {
-                        type.IsPublic = true;
-                    }
-                    else
-                    {
-                        type.IsPublic = true;
-                        type.IsNestedPublic = true;
-                    }
-
-                    foreach (var field in type.Fields)
-                    {
-                        if (!type.Properties.Any(property => property.Name == field.Name) && !type.Events.Any(e => e.Name == field.Name))
-                            field.IsPublic = true;
-                    }
-
                     foreach (var method in type.Methods)
                     {
                         if (/*UseEmptyMethodBodies && */method.HasBody)
@@ -48,11 +32,12 @@ namespace ReferencePackageGenerator
                             emptyBody.Instructions.Add(Mono.Cecil.Cil.Instruction.Create(Mono.Cecil.Cil.OpCodes.Throw));
                             method.Body = emptyBody;
                         }
-
-                        method.IsPublic = true;
                     }
                 }
             }
+            
+            MethodReference? referenceAttrCtor = assembly.MainModule.ImportReference(typeof(ReferenceAssemblyAttribute).GetConstructor(Type.EmptyTypes));
+            assembly.CustomAttributes.Add(new CustomAttribute(referenceAttrCtor));
 
             assembly.Write(target);
             return assembly;
