@@ -280,7 +280,7 @@ $@"using System.Runtime.CompilerServices;
             }
 
             // Check for pdb DebugSymbols
-            var pdbFile = ChangeFileDirectoryAndExtension(target, config.DebugSymbolPath, ".pdb");
+            var pdbFile = ChangeFileDirectoryAndExtension(target, config.DebugSymbolsPath, ".pdb");
             if (File.Exists(pdbFile))
             {
                 builder.AddFiles("", pdbFile, destinationPath);
