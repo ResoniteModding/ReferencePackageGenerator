@@ -87,8 +87,6 @@ $@"using System.Runtime.CompilerServices;
             builder.Authors.AddRange(config.Authors);
 
             builder.Tags.AddRange(config.Tags);
-            builder.Tags.Add("MonkeyLoader");
-            builder.Tags.Add("ReferencePackageGenerator");
 
             //builder.DependencyGroups.Add(new PackageDependencyGroup(
             //    targetFramework: NuGetFramework.Parse("netstandard1.4"),
