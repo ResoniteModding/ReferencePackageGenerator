@@ -1,0 +1,168 @@
+name: Generate Reference Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: 'Build version from Resonite'
+        required: true
+        type: string
+      branch:
+        description: 'Branch to process'
+        required: false
+        default: 'main'
+        type: string
+  repository_dispatch:
+    types: [generate-references]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          
+      - name: Download Resonite Assemblies
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.RESONITE_ASSEMBLIES_REPO }}
+          ref: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}
+          path: resonite-assemblies
+          token: ${{ secrets.PRIVATE_TOKEN_GITHUB }}
+          
+      - name: Clone Elements.Quantity from source
+        uses: actions/checkout@v4
+        with:
+          repository: hazre/Elements.Quantity
+          ref: remove-utility
+          path: elements-quantity
+          
+      - name: Build Elements.Quantity
+        run: |
+          cd elements-quantity
+          dotnet build -c Release
+          echo "Elements.Quantity built successfully"
+          
+      - name: Replace Elements.Quantity DLLs
+        run: |
+          echo "Finding built Elements.Quantity.dll..."
+          built_dll=$(find elements-quantity -name "Elements.Quantity.dll" -path "*/bin/Release/*" | head -1)
+          
+          if [ -z "$built_dll" ]; then
+            echo "Error: Could not find built Elements.Quantity.dll"
+            exit 1
+          fi
+          
+          echo "Found built DLL at: $built_dll"
+          
+          # Find and replace all Elements.Quantity.dll files in resonite-assemblies
+          find resonite-assemblies -name "Elements.Quantity.dll" -type f | while read -r dll_path; do
+            echo "Replacing: $dll_path"
+            cp "$built_dll" "$dll_path"
+          done
+          
+          echo "All Elements.Quantity.dll files replaced successfully"
+          
+      - name: Prepare Config
+        run: |
+          version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
+          if [ -z "$version" ]; then
+            version_file="resonite-assemblies/Build.version"
+            if [ -f "$version_file" ]; then
+              version=$(cat "$version_file" | tr -d '\r\n')
+            else
+              echo "Error: Build.version not found and no version provided"
+              exit 1
+            fi
+          fi
+          
+          echo "Using version: $version"
+          
+          # Create the config JSON
+          cat > resonite-config.json << EOF
+          {
+            "SourcePath": "${{ github.workspace }}/resonite-assemblies",
+            "DllTargetPath": "${{ github.workspace }}/output/dlls",
+            "NupkgTargetPath": "${{ github.workspace }}/output/packages",
+            "DocumentationPath": "${{ github.workspace }}/resonite-assemblies",
+            "PackageIdPrefix": "Resonite.",
+            "SinglePackageMode": true,
+            "SinglePackageName": "GameLibs",
+            "SinglePackageVersion": "$version",
+            "TargetFramework": "net9.0",
+            "Recursive": true,
+            "IncludePatterns": [
+              "^AccountDelete\\\\.dll$",
+              "^AccountDump\\\\.dll$",
+              "^Awwdio\\\\.dll$",
+              "^Cloudtoid\\\\..*\\\\.dll$",
+              "^CodeGenerationConfig\\\\.dll$",
+              "^ColorLUT\\\\.dll$",
+              "^Compressonator\\\\.NET\\\\.dll$",
+              "^Elements\\\\..*\\\\.dll$",
+              "^FrooxEngine\\\\.dll$",
+              "^FrooxEngine\\\\..*\\\\.dll$",
+              "^Msdfgen\\\\.NET\\\\.dll$",
+              "^NativeGraphics\\\\.NET\\\\.dll$",
+              "^PhotonDust\\\\.dll$",
+              "^ProtoFlux\\\\..*\\\\.dll$",
+              "^ProtoFluxBindingGenerator\\\\.dll$",
+              "^ProtoFluxBindings\\\\.dll$",
+              "^RNNoise\\\\.NET\\\\.dll$",
+              "^Renderite\\\\..*\\\\.dll$",
+              "^Resonite\\\\.dll$",
+              "^ResoniteProtocolHandler\\\\.dll$",
+              "^SkyFrost\\\\..*\\\\.dll$",
+              "^YellowDogMan\\\\..*\\\\.dll$"
+            ],
+            "ExcludePatterns": [],
+            "Authors": ["ResoniteModding"],
+            "Tags": ["ResoniteModding", "Resonite", "Reference", "Modding"],
+            "ProjectUrl": "https://github.com/ResoniteModding/ReferencePackageGenerator",
+            "RepositoryUrl": "https://github.com/ResoniteModding/ReferencePackageGenerator",
+            "PublishTarget": null
+          }
+          EOF
+          
+          echo "Config file created"
+          
+      - name: Generate Reference Package
+        run: |
+          cd ReferencePackageGenerator
+          dotnet run -- "${{ github.workspace }}/resonite-config.json"
+          
+      - name: Upload Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-package-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
+          path: output/packages/*.nupkg
+          retention-days: 30
+          
+      - name: Upload DLLs Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publicized-dlls-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
+          path: output/dlls/*.dll
+          retention-days: 7
+          
+      - name: Publish to NuGet
+        if: github.event.inputs.publish == 'true' || github.event.client_payload.publish == true
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -n "$NUGET_API_KEY" ]; then
+            for package in output/packages/*.nupkg; do
+              if [ -f "$package" ]; then
+                echo "Publishing $(basename $package) to NuGet..."
+                dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://nuget-modding.resonite.net/v3/index.json --skip-duplicate
+              fi
+            done
+          else
+            echo "Warning: NUGET_API_KEY not set, skipping publish"
+          fi
