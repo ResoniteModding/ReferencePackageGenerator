@@ -41,6 +41,8 @@ namespace ReferencePackageGenerator
 
         public string IconUrl { get; set; } = string.Empty;
 
+        public string ReadmePath { get; set; } = string.Empty;
+
         public string[] IncludePatterns
         {
             get => Includes.Select(regex => regex.ToString()).ToArray();

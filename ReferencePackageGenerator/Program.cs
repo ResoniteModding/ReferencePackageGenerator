@@ -190,6 +190,13 @@ $@"using System.Runtime.CompilerServices;
                 builder.Icon = iconName;
             }
 
+            if (File.Exists(config.ReadmePath))
+            {
+                var readmeName = Path.GetFileName(config.ReadmePath);
+                builder.AddFiles("", config.ReadmePath, readmeName);
+                builder.Readme = readmeName;
+            }
+
             var ignoreAccessChecksToPath = GenerateCombinedIgnoresAccessChecksToFile(targets, config.DllTargetPath);
             builder.AddFiles("", ignoreAccessChecksToPath, "contentFiles/cs/any/IgnoresAccessChecksTo/");
             builder.AddFiles("", ignoreAccessChecksToPath, "content/IgnoresAccessChecksTo/");
@@ -301,6 +308,13 @@ $@"using System.Runtime.CompilerServices;
                 var iconName = Path.GetFileName(config.IconPath);
                 builder.AddFiles("", config.IconPath, iconName);
                 builder.Icon = iconName;
+            }
+
+            if (File.Exists(config.ReadmePath))
+            {
+                var readmeName = Path.GetFileName(config.ReadmePath);
+                builder.AddFiles("", config.ReadmePath, readmeName);
+                builder.Readme = readmeName;
             }
 
             var ignoreAccessChecksToPath = GenerateIgnoresAccessChecksToFile(target);
