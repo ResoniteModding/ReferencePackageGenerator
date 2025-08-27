@@ -10,7 +10,6 @@ using NuGet.Protocol;
 using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace ReferencePackageGenerator
 {
@@ -62,35 +61,6 @@ namespace ReferencePackageGenerator
             return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
         }
 
-        private static string GenerateIgnoresAccessChecksToFile(string target)
-        {
-            var text =
-$@"using System.Runtime.CompilerServices;
-
-[assembly: IgnoresAccessChecksTo(""{Path.GetFileNameWithoutExtension(target)}"")]";
-
-            var csFile = ChangeFileExtension(target, ".cs");
-            File.WriteAllText(csFile, text);
-
-            return csFile;
-        }
-
-        private static string GenerateCombinedIgnoresAccessChecksToFile(IEnumerable<string> targets, string outputPath)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("using System.Runtime.CompilerServices;");
-            sb.AppendLine();
-
-            foreach (var target in targets)
-            {
-                sb.AppendLine($@"[assembly: IgnoresAccessChecksTo(""{Path.GetFileNameWithoutExtension(target)}"")]");
-            }
-
-            var csFile = Path.Combine(outputPath, "IgnoresAccessChecksToAll.cs");
-            File.WriteAllText(csFile, sb.ToString());
-
-            return csFile;
-        }
 
         private static async Task GenerateSingleNuGetPackageAsync(Config config, IEnumerable<(string target, AssemblyDefinition assembly)> assemblies)
         {
@@ -111,7 +81,6 @@ $@"using System.Runtime.CompilerServices;
             builder.Tags.AddRange(config.Tags);
 
             var destinationPath = $"ref/{config.TargetFramework}/";
-            var targets = new List<string>();
             var addedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var (target, assembly) in assemblies)
@@ -126,7 +95,6 @@ $@"using System.Runtime.CompilerServices;
                 }
                 
                 builder.AddFiles("", target, destinationPath);
-                targets.Add(target);
 
                 // Check for XML documentation
                 var docFileName = Path.GetFileNameWithoutExtension(fileName) + ".xml";
@@ -197,17 +165,6 @@ $@"using System.Runtime.CompilerServices;
                 builder.Readme = readmeName;
             }
 
-            var ignoreAccessChecksToPath = GenerateCombinedIgnoresAccessChecksToFile(targets, config.DllTargetPath);
-            builder.AddFiles("", ignoreAccessChecksToPath, "contentFiles/cs/any/IgnoresAccessChecksTo/");
-            builder.AddFiles("", ignoreAccessChecksToPath, "content/IgnoresAccessChecksTo/");
-
-            builder.ContentFiles.Add(new ManifestContentFiles
-            {
-                Include = $"cs/any/IgnoresAccessChecksTo/IgnoresAccessChecksToAll.cs",
-                BuildAction = "compile",
-                Flatten = "false",
-                CopyToOutput = "false"
-            });
 
             var packagePath = Path.Combine(config.NupkgTargetPath, $"{config.PackageIdPrefix}{config.SinglePackageName}.nupkg");
             using (var outputStream = new FileStream(packagePath, FileMode.Create))
@@ -317,17 +274,6 @@ $@"using System.Runtime.CompilerServices;
                 builder.Readme = readmeName;
             }
 
-            var ignoreAccessChecksToPath = GenerateIgnoresAccessChecksToFile(target);
-            builder.AddFiles("", ignoreAccessChecksToPath, "contentFiles/cs/any/IgnoresAccessChecksTo/");
-            builder.AddFiles("", ignoreAccessChecksToPath, "content/IgnoresAccessChecksTo/");
-
-            builder.ContentFiles.Add(new ManifestContentFiles
-            {
-                Include = $"cs/any/IgnoresAccessChecksTo/{Path.GetFileNameWithoutExtension(target)}.cs",
-                BuildAction = "compile",
-                Flatten = "false",
-                CopyToOutput = "false"
-            });
 
             var packagePath = Path.Combine(config.NupkgTargetPath, $"{config.PackageIdPrefix}{Path.GetFileNameWithoutExtension(target)}.nupkg");
             using (var outputStream = new FileStream(packagePath, FileMode.Create))
