@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       build_version:
-        description: 'Build version from Resonite'
-        required: true
+        description: 'Build version from Resonite (optional, uses Build.version if not provided)'
+        required: false
         type: string
       branch:
         description: 'Branch to process'
@@ -90,18 +90,25 @@ jobs:
           
       - name: Prepare Config
         run: |
-          version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
-          if [ -z "$version" ]; then
-            version_file="resonite-assemblies/Build.version"
-            if [ -f "$version_file" ]; then
-              version=$(cat "$version_file" | tr -d '\r\n')
-            else
+          # Always try to read from Build.version first
+          version_file="resonite-assemblies/Build.version"
+          if [ -f "$version_file" ]; then
+            version=$(cat "$version_file" | tr -d '\r\n')
+            echo "Read version from Build.version: $version"
+          else
+            # Fall back to input parameter if Build.version doesn't exist
+            version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
+            if [ -z "$version" ]; then
               echo "Error: Build.version not found and no version provided"
               exit 1
             fi
+            echo "Using provided version: $version"
           fi
           
           echo "Using version: $version"
+          
+          # Export version for use in later steps
+          echo "BUILD_VERSION=$version" >> $GITHUB_ENV
           
           # Copy and modify the Resonite.json config
           cp Resonite.json resonite-config.json
@@ -131,14 +138,14 @@ jobs:
       - name: Upload Package Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: reference-package-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
+          name: reference-package-${{ env.BUILD_VERSION }}
           path: output/packages/*.nupkg
           retention-days: 30
           
       - name: Upload DLLs Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: stripped-dlls-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
+          name: stripped-dlls-${{ env.BUILD_VERSION }}
           path: output/dlls/*.dll
           retention-days: 7
           
