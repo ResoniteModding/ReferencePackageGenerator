@@ -3,13 +3,14 @@ using NuGet.Frameworks;
 using NuGet.Packaging.Core;
 using NuGet.Packaging;
 using NuGet.Versioning;
-using Mono.Cecil;
 using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using NuGet.Protocol;
 using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace ReferencePackageGenerator
 {
@@ -61,8 +62,24 @@ namespace ReferencePackageGenerator
             return relativePath.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar);
         }
 
+        private static Version GetAssemblyVersion(string assemblyPath)
+        {
+            try
+            {
+                using var stream = new FileStream(assemblyPath, FileMode.Open, FileAccess.Read);
+                using var peReader = new PEReader(stream);
+                var metadataReader = peReader.GetMetadataReader();
+                var assemblyDef = metadataReader.GetAssemblyDefinition();
+                return assemblyDef.Version;
+            }
+            catch
+            {
+                return new Version(1, 0, 0, 0);
+            }
+        }
 
-        private static async Task GenerateSingleNuGetPackageAsync(Config config, IEnumerable<(string target, AssemblyDefinition assembly)> assemblies)
+
+        private static async Task GenerateSingleNuGetPackageAsync(Config config, IEnumerable<string> targets)
         {
             var builder = new PackageBuilder
             {
@@ -83,7 +100,7 @@ namespace ReferencePackageGenerator
             var destinationPath = $"ref/{config.TargetFramework}/";
             var addedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var (target, assembly) in assemblies)
+            foreach (var target in targets)
             {
                 var fileName = Path.GetFileName(target);
                 
@@ -196,11 +213,11 @@ namespace ReferencePackageGenerator
             }
         }
 
-        private static async Task GenerateNuGetPackageAsync(Config config, string target, AssemblyDefinition assembly)
+        private static async Task GenerateNuGetPackageAsync(Config config, string target, Version assemblyVersion)
         {
             var version = config.VersionOverrides.TryGetValue(Path.GetFileName(target), out var versionOverride)
             ? versionOverride
-            : assembly.Name.Version;
+            : assemblyVersion;
 
             version = CombineVersions(version, config.VersionBoost);
 
@@ -365,9 +382,7 @@ namespace ReferencePackageGenerator
                     continue;
                 }
 
-                var codeStripper = new CodeStripper();
-                codeStripper.Resolver.AddSearchDirectory(RuntimeEnvironment.GetRuntimeDirectory());
-                codeStripper.Resolver.AddSearchDirectory(config.SourcePath);
+                var refasmerStripper = new RefasmerStripper(config.RefasmerOptions);
 
                 try
                 {
@@ -395,7 +410,7 @@ namespace ReferencePackageGenerator
 
                 if (config.SinglePackageMode)
                 {
-                    var assemblies = new List<(string source, string target, AssemblyDefinition assembly)>();
+                    var targets = new List<(string source, string target)>();
 
                     foreach (var source in config.Search())
                     {
@@ -403,9 +418,9 @@ namespace ReferencePackageGenerator
 
                         try
                         {
-                            var assembly = codeStripper.CreateReferenceAssembly(source, target);
+                            refasmerStripper.CreateReferenceAssembly(source, target);
                             Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
-                            assemblies.Add((source, target, assembly));
+                            targets.Add((source, target));
                         }
                         catch (Exception ex)
                         {
@@ -415,14 +430,14 @@ namespace ReferencePackageGenerator
                         }
                     }
 
-                    if (assemblies.Count > 0)
+                    if (targets.Count > 0)
                     {
-                        // Sort assemblies by distance from SourcePath (closest first)
-                        var sortedAssemblies = assemblies
-                            .OrderBy(a => GetPathDepth(Path.GetRelativePath(config.SourcePath, a.source)))
-                            .Select(a => (a.target, a.assembly));
+                        // Sort targets by distance from SourcePath (closest first)
+                        var sortedTargets = targets
+                            .OrderBy(t => GetPathDepth(Path.GetRelativePath(config.SourcePath, t.source)))
+                            .Select(t => t.target);
                         
-                        GenerateSingleNuGetPackageAsync(config, sortedAssemblies).GetAwaiter().GetResult();
+                        GenerateSingleNuGetPackageAsync(config, sortedTargets).GetAwaiter().GetResult();
                     }
                 }
                 else
@@ -433,10 +448,12 @@ namespace ReferencePackageGenerator
 
                         try
                         {
-                            var assembly = codeStripper.CreateReferenceAssembly(source, target);
+                            refasmerStripper.CreateReferenceAssembly(source, target);
                             Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
 
-                            GenerateNuGetPackageAsync(config, target, assembly).GetAwaiter().GetResult();
+                            // Get assembly version for the package
+                            var assemblyVersion = GetAssemblyVersion(target);
+                            GenerateNuGetPackageAsync(config, target, assemblyVersion).GetAwaiter().GetResult();
                         }
                         catch (Exception ex)
                         {

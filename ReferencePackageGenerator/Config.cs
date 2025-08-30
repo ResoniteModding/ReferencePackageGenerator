@@ -87,6 +87,8 @@ namespace ReferencePackageGenerator
 
         public string VersionReleaseLabel { get; set; } = string.Empty;
 
+        public RefasmerOptions RefasmerOptions { get; set; } = new RefasmerOptions();
+
         [JsonProperty(nameof(SinglePackageVersion))]
         private string? SinglePackageVersionString
         {
