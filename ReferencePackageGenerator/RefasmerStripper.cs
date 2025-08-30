@@ -47,16 +47,42 @@ namespace ReferencePackageGenerator
             _logger = new LoggerBase(new SimpleLogger(_options.LogLevel));
         }
 
+        public static bool IsValidAssembly(string filePath)
+        {
+            try
+            {
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                using var peReader = new PEReader(stream);
+
+                if (!peReader.HasMetadata)
+                    return false;
+
+                var metadataReader = peReader.GetMetadataReader();
+
+                return metadataReader.IsAssembly;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public void CreateReferenceAssembly(string sourcePath, string targetPath)
         {
             try
             {
                 using var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read);
                 using var peReader = new PEReader(sourceStream);
+
+                if (!peReader.HasMetadata)
+                {
+                    throw new InvalidOperationException($"File {Path.GetFileName(sourcePath)} is not a .NET assembly (no metadata)");
+                }
+
                 var metadataReader = peReader.GetMetadataReader();
 
                 IImportFilter? filter = null;
-                
+
                 switch (_options.FilterMode)
                 {
                     case FilterMode.Public:

@@ -110,10 +110,24 @@ namespace ReferencePackageGenerator
             set => VersionOverrides = value?.ToDictionary(entry => entry.Key, entry => new Version(entry.Value), StringComparer.OrdinalIgnoreCase) ?? new(StringComparer.OrdinalIgnoreCase);
         }
 
+        public string[] ExcludePathPatterns { get; set; } = [];
+
+        public string[] ForceIncludePatterns
+        {
+            get => ForceIncludes.Select(regex => regex.ToString()).ToArray();
+
+            [MemberNotNull(nameof(ForceIncludes))]
+            set => ForceIncludes = value?.Select(pattern => new Regex(pattern, RegexOptions.IgnoreCase)).ToArray() ?? [];
+        }
+
+        [JsonIgnore]
+        public Regex[] ForceIncludes { get; private set; } = [];
+
         public Config()
         {
             IncludePatterns = [@".+\.dll$", @".+\.exe$"];
             ExcludePatterns = [@"^Microsoft\..+", @"^System\..+", @"^Mono\..+", @"^UnityEngine\..+"];
+            ExcludePathPatterns = [@"Renderer", @"Resonite_Data", @"runtimes", @"BepInEx", @"rml_", @"SRAnipal", @"Tools", @"Migrations", @"Locale", @"Plugins"];
         }
 
         public IEnumerable<string> Search()
@@ -122,13 +136,42 @@ namespace ReferencePackageGenerator
             {
                 var fileName = Path.GetFileName(path);
 
+                // If file matches ForceIncludePatterns, always include it (override all exclusions)
+                if (ForceIncludes.Length != 0 && ForceIncludes.Any(regex => regex.IsMatch(fileName)))
+                {
+                    yield return path;
+                    continue;
+                }
+
+                // Check if path should be excluded (folder and all contents)
+                if (ExcludePathPatterns.Length != 0)
+                {
+                    var relativePath = Path.GetRelativePath(SourcePath, path);
+                    var pathParts = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                    // Check if any folder in the path matches an exclude pattern
+                    foreach (var part in pathParts.Take(pathParts.Length - 1)) // Exclude the file name itself
+                    {
+                        if (ExcludePathPatterns.Any(pattern =>
+                            part.Equals(pattern, StringComparison.OrdinalIgnoreCase) ||
+                            part.StartsWith(pattern, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            goto NextFile; // Skip this file
+                        }
+                    }
+                }
+
+                // Check if file matches include patterns (if specified)
                 if (Includes.Length != 0 && !Includes.Any(regex => regex.IsMatch(fileName)))
                     continue;
 
+                // Check file name exclusions
                 if (Excludes.Length != 0 && Excludes.Any(regex => regex.IsMatch(fileName)))
                     continue;
 
                 yield return path;
+
+            NextFile:;
             }
         }
     }
