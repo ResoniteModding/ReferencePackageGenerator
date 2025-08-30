@@ -1,14 +1,9 @@
 ﻿using Newtonsoft.Json;
-using NuGet.Frameworks;
-using NuGet.Packaging.Core;
 using NuGet.Packaging;
+using NuGet.Packaging.Core;
 using NuGet.Versioning;
-using NuGet.Common;
 using NuGet.Protocol.Core.Types;
 using NuGet.Protocol;
-using System;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 
@@ -23,9 +18,6 @@ namespace ReferencePackageGenerator
 
         private static string ChangeFileDirectoryAndExtension(string file, string newDirectory, string newExtension)
             => Path.Combine(newDirectory, $"{Path.GetFileNameWithoutExtension(file)}{(newExtension.StartsWith('.') ? "" : ".")}{newExtension}");
-
-        private static string ChangeFileExtension(string file, string newExtension)
-            => Path.Combine(Path.GetDirectoryName(file)!, $"{Path.GetFileNameWithoutExtension(file)}{(newExtension.StartsWith('.') ? "" : ".")}{newExtension}");
 
         private static Version CombineVersions(Version primary, Version boost)
         {
