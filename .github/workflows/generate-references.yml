@@ -103,49 +103,25 @@ jobs:
           
           echo "Using version: $version"
           
-          # Create the config JSON
-          cat > resonite-config.json << EOF
-          {
-            "SourcePath": "${{ github.workspace }}/resonite-assemblies",
-            "DllTargetPath": "${{ github.workspace }}/output/dlls",
-            "NupkgTargetPath": "${{ github.workspace }}/output/packages",
-            "DocumentationPath": "${{ github.workspace }}/resonite-assemblies",
-            "ReadmePath": "${{ github.workspace }}/ReferencePackageGenerator/README.md",
-            "PackageIdPrefix": "Resonite.",
-            "SinglePackageMode": true,
-            "SinglePackageName": "GameLibs",
-            "SinglePackageVersion": "$version",
-            "TargetFramework": "net9.0",
-            "Recursive": true,
-            "IncludePatterns": [
-              "^Awwdio\\\\.dll$",
-              "^CodeGenerationConfig\\\\.dll$",
-              "^ColorLUT\\\\.dll$",
-              "^Compressonator\\\\.NET\\\\.dll$",
-              "^Elements\\\\..*\\\\.dll$",
-              "^FrooxEngine\\\\.dll$",
-              "^FrooxEngine\\\\..*\\\\.dll$",
-              "^Msdfgen\\\\.NET\\\\.dll$",
-              "^NativeGraphics\\\\.NET\\\\.dll$",
-              "^PhotonDust\\\\.dll$",
-              "^ProtoFlux\\\\..*\\\\.dll$",
-              "^ProtoFluxBindings\\\\.dll$",
-              "^RNNoise\\\\.NET\\\\.dll$",
-              "^Renderite\\\\..*\\\\.dll$",
-              "^Resonite\\\\.dll$",
-              "^SkyFrost\\\\..*\\\\.dll$",
-              "^YellowDogMan\\\\..*\\\\.dll$"
-            ],
-            "ExcludePatterns": [],
-            "Authors": ["ResoniteModding"],
-            "Tags": ["ResoniteModding", "Resonite", "Reference", "Modding"],
-            "ProjectUrl": "https://github.com/ResoniteModding/ReferencePackageGenerator",
-            "RepositoryUrl": "https://github.com/ResoniteModding/ReferencePackageGenerator",
-            "PublishTarget": null
-          }
-          EOF
+          # Copy and modify the Resonite.json config
+          cp Resonite.json resonite-config.json
           
-          echo "Config file created"
+          # Use jq to update paths and version
+          jq --arg sp "${{ github.workspace }}/resonite-assemblies" \
+             --arg dp "${{ github.workspace }}/output/dlls" \
+             --arg np "${{ github.workspace }}/output/packages" \
+             --arg rp "${{ github.workspace }}/ReferencePackageGenerator/README.md" \
+             --arg ver "$version" \
+             '.SourcePath = $sp | 
+              .DllTargetPath = $dp | 
+              .NupkgTargetPath = $np | 
+              .ReadmePath = $rp | 
+              .SinglePackageVersion = $ver' \
+             resonite-config.json > resonite-config-temp.json
+          
+          mv resonite-config-temp.json resonite-config.json
+          
+          echo "Config file prepared from Resonite.json"
           
       - name: Generate Reference Package
         run: |
@@ -162,7 +138,7 @@ jobs:
       - name: Upload DLLs Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: publicized-dlls-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
+          name: stripped-dlls-${{ github.event.inputs.build_version || github.event.client_payload.build_version }}
           path: output/dlls/*.dll
           retention-days: 7
           
