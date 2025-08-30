@@ -105,6 +105,18 @@ jobs:
             echo "Using provided version: $version"
           fi
           
+          # Get the branch name
+          branch="${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}"
+          echo "Processing branch: $branch"
+          
+          # Append branch name to version if not main/master
+          if [ "$branch" != "main" ] && [ "$branch" != "master" ]; then
+            # Sanitize branch name for NuGet (replace invalid chars with -)
+            sanitized_branch=$(echo "$branch" | sed 's/[^a-zA-Z0-9-]/-/g')
+            version="${version}-${sanitized_branch}"
+            echo "Appended branch name to version for prerelease"
+          fi
+          
           echo "Using version: $version"
           
           # Export version for use in later steps
