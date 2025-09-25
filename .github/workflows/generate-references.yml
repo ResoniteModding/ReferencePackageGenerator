@@ -90,19 +90,23 @@ jobs:
           
       - name: Prepare Config
         run: |
-          # Always try to read from Build.version first
-          version_file="resonite-assemblies/Build.version"
-          if [ -f "$version_file" ]; then
-            version=$(cat "$version_file" | tr -d '\r\n')
-            echo "Read version from Build.version: $version"
+          # Check if build_version was explicitly provided as input
+          input_version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
+          
+          if [ -n "$input_version" ]; then
+            # Use the provided build_version input
+            version="$input_version"
+            echo "Using provided build_version input: $version"
           else
-            # Fall back to input parameter if Build.version doesn't exist
-            version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
-            if [ -z "$version" ]; then
-              echo "Error: Build.version not found and no version provided"
+            # Fall back to Build.version file
+            version_file="resonite-assemblies/Build.version"
+            if [ -f "$version_file" ]; then
+              version=$(cat "$version_file" | tr -d '\r\n')
+              echo "Read version from Build.version: $version"
+            else
+              echo "Error: No build_version provided and Build.version not found"
               exit 1
             fi
-            echo "Using provided version: $version"
           fi
           
           # Get the branch name
