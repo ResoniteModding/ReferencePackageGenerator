@@ -409,8 +409,14 @@ namespace ReferencePackageGenerator
                 if (config.SinglePackageMode)
                 {
                     var targets = new List<(string source, string target)>();
+                    var processedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                    foreach (var source in config.Search())
+                    // First, sort sources by path depth to prefer root files over subdirectory files
+                    var sortedSources = config.Search()
+                        .OrderBy(s => GetPathDepth(Path.GetRelativePath(config.SourcePath, s)))
+                        .ToList();
+
+                    foreach (var source in sortedSources)
                     {
                         if (!RefasmerStripper.IsValidAssembly(source))
                         {
@@ -418,12 +424,30 @@ namespace ReferencePackageGenerator
                             continue;
                         }
 
+                        var fileName = Path.GetFileName(source);
+                        
+                        // Skip if we've already processed a file with this name (prefer root over subdirectories)
+                        if (!processedFiles.Add(fileName))
+                        {
+                            Console.WriteLine($"Skipping duplicate assembly from subdirectory: {source}");
+                            continue;
+                        }
+
                         var target = ChangeFileDirectory(source, config.DllTargetPath);
 
                         try
                         {
+                            // Log the assembly version before stripping
+                            var sourceVersion = GetAssemblyVersion(source);
+                            Console.WriteLine($"Source assembly {Path.GetFileName(source)} has version: {sourceVersion}");
+                            
                             refasmerStripper.CreateReferenceAssembly(source, target);
                             Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
+                            
+                            // Log the assembly version after stripping
+                            var targetVersion = GetAssemblyVersion(target);
+                            Console.WriteLine($"Stripped assembly {Path.GetFileName(target)} has version: {targetVersion}");
+                            
                             targets.Add((source, target));
                         }
                         catch (Exception ex)
@@ -436,12 +460,10 @@ namespace ReferencePackageGenerator
 
                     if (targets.Count > 0)
                     {
-                        // Sort targets by distance from SourcePath (closest first)
-                        var sortedTargets = targets
-                            .OrderBy(t => GetPathDepth(Path.GetRelativePath(config.SourcePath, t.source)))
-                            .Select(t => t.target);
+                        // Targets are already sorted by path depth during processing
+                        var targetFiles = targets.Select(t => t.target);
 
-                        GenerateSingleNuGetPackageAsync(config, sortedTargets).GetAwaiter().GetResult();
+                        GenerateSingleNuGetPackageAsync(config, targetFiles).GetAwaiter().GetResult();
                     }
                 }
                 else
@@ -458,11 +480,16 @@ namespace ReferencePackageGenerator
 
                         try
                         {
+                            // Log the assembly version before stripping
+                            var sourceVersion = GetAssemblyVersion(source);
+                            Console.WriteLine($"Source assembly {Path.GetFileName(source)} has version: {sourceVersion}");
+                            
                             refasmerStripper.CreateReferenceAssembly(source, target);
                             Console.WriteLine($"Stripped {Path.GetFileName(source)} to {Path.GetFileName(target)}");
 
                             // Get assembly version for the package
                             var assemblyVersion = GetAssemblyVersion(target);
+                            Console.WriteLine($"Stripped assembly {Path.GetFileName(target)} has version: {assemblyVersion}");
                             GenerateNuGetPackageAsync(config, target, assemblyVersion).GetAwaiter().GetResult();
                         }
                         catch (Exception ex)
