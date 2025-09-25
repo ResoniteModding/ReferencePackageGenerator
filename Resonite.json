@@ -115,6 +115,7 @@
     "^OggVorbisEncoder\\.dll$",
     "^opus\\.dll$",
     "^opusenc\\.dll$",
+    "^OpenLipSync.*\\.dll$",
     "^OVRLipSync\\.dll$",
     "^OVRPlugin\\.dll$",
     "^pdfium.*\\.dll$",
