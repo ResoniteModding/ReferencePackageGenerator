@@ -174,7 +174,8 @@
     ".+\\.exe$"
   ],
   "ForceIncludePatterns": [
-    "^Renderite\\.Unity\\.dll$"
+    "^Renderite\\.Unity\\.dll$",
+    "^Assembly-CSharp\\.dll$"
   ],
   "NupkgTargetPath": "./Packages",
   "PackageIdPrefix": "Resonite.",
