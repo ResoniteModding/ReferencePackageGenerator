@@ -165,7 +165,9 @@
     "^Mnemosyne\\.dll$",
     "^Spz\\.NET\\.dll$",
     "^SRAnipalSharp\\.dll$",
-    "^Weavers\\.dll$"
+    "^Weavers\\.dll$",
+    "^MathNet.Numerics\\.dll$",
+    "^SoundFlow\\.dll$"
   ],
   "IconPath": null,
   "IconUrl": null,
