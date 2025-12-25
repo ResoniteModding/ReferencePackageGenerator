@@ -167,7 +167,8 @@
     "^SRAnipalSharp\\.dll$",
     "^Weavers\\.dll$",
     "^MathNet.Numerics\\.dll$",
-    "^SoundFlow\\.dll$"
+    "^SoundFlow\\.dll$",
+    "^resonite-clipboard-cs\\.dll$"
   ],
   "IconPath": null,
   "IconUrl": null,
