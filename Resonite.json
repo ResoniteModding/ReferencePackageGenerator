@@ -168,7 +168,9 @@
     "^Weavers\\.dll$",
     "^MathNet.Numerics\\.dll$",
     "^SoundFlow\\.dll$",
-    "^resonite-clipboard-cs\\.dll$"
+    "^resonite-clipboard-cs\\.dll$",
+    "^C5\\.dll$",
+    "^ColorLUT\\.dll$"
   ],
   "IconPath": null,
   "IconUrl": null,
