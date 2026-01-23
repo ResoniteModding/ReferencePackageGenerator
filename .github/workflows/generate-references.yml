@@ -23,61 +23,67 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
-        
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309 # v5.1.0
         with:
           dotnet-version: '10.0.x'
-          
+
       - name: Download Resonite Assemblies
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ secrets.RESONITE_ASSEMBLIES_REPO }}
           ref: ${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}
           path: resonite-assemblies
           token: ${{ secrets.PRIVATE_TOKEN_GITHUB }}
-          
+          persist-credentials: false
+
       - name: Clone Elements.Quantity from source
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: hazre/Elements.Quantity
-          ref: remove-utility
+          ref: 3965e9f686c271758d4de3431d550b189b185dd2 # main
           path: elements-quantity
-          
+          persist-credentials: false
+
       - name: Build Elements.Quantity
         run: |
           cd elements-quantity
           dotnet build -c Release
           echo "Elements.Quantity built successfully"
-          
+
       - name: Replace Elements.Quantity DLLs and PDBs
         run: |
           echo "Finding built Elements.Quantity files..."
           built_dll=$(find elements-quantity -name "Elements.Quantity.dll" -path "*/bin/Release/*" | head -1)
           built_pdb=$(find elements-quantity -name "Elements.Quantity.pdb" -path "*/bin/Release/*" | head -1)
-          
+
           if [ -z "$built_dll" ]; then
             echo "Error: Could not find built Elements.Quantity.dll"
             exit 1
           fi
-          
+
           echo "Found built DLL at: $built_dll"
-          
+
           if [ -n "$built_pdb" ]; then
             echo "Found built PDB at: $built_pdb"
           else
             echo "Warning: Could not find Elements.Quantity.pdb"
           fi
-          
+
           # Find and replace all Elements.Quantity.dll files in resonite-assemblies
           find resonite-assemblies -name "Elements.Quantity.dll" -type f | while read -r dll_path; do
             echo "Replacing DLL: $dll_path"
             cp "$built_dll" "$dll_path"
-            
+
             # If PDB exists, copy it to the same directory as the DLL
             if [ -n "$built_pdb" ]; then
               pdb_dest="$(dirname "$dll_path")/Elements.Quantity.pdb"
@@ -85,14 +91,19 @@ jobs:
               cp "$built_pdb" "$pdb_dest"
             fi
           done
-          
+
           echo "All Elements.Quantity files replaced successfully"
-          
+
       - name: Prepare Config
+        env:
+          INPUT_BUILD_VERSION: ${{ github.event.inputs.build_version }}
+          PAYLOAD_BUILD_VERSION: ${{ github.event.client_payload.build_version }}
+          INPUT_BRANCH: ${{ github.event.inputs.branch }}
+          PAYLOAD_BRANCH: ${{ github.event.client_payload.branch }}
         run: |
           # Check if build_version was explicitly provided as input
-          input_version="${{ github.event.inputs.build_version || github.event.client_payload.build_version }}"
-          
+          input_version="${INPUT_BUILD_VERSION:-$PAYLOAD_BUILD_VERSION}"
+
           if [ -n "$input_version" ]; then
             # Use the provided build_version input
             version="$input_version"
@@ -108,11 +119,11 @@ jobs:
               exit 1
             fi
           fi
-          
+
           # Get the branch name
-          branch="${{ github.event.inputs.branch || github.event.client_payload.branch || 'main' }}"
+          branch="${INPUT_BRANCH:-${PAYLOAD_BRANCH:-main}}"
           echo "Processing branch: $branch"
-          
+
           # Append branch name to version if not main/master
           if [ "$branch" != "main" ] && [ "$branch" != "master" ]; then
             # Sanitize branch name for NuGet (replace invalid chars with -)
@@ -120,51 +131,51 @@ jobs:
             version="${version}-${sanitized_branch}"
             echo "Appended branch name to version for prerelease"
           fi
-          
+
           echo "Using version: $version"
-          
+
           # Export version for use in later steps
           echo "BUILD_VERSION=$version" >> $GITHUB_ENV
-          
+
           # Copy and modify the Resonite.json config
           cp Resonite.json resonite-config.json
-          
+
           # Use jq to update paths and version
           jq --arg sp "${{ github.workspace }}/resonite-assemblies" \
              --arg dp "${{ github.workspace }}/output/dlls" \
              --arg np "${{ github.workspace }}/output/packages" \
              --arg rp "${{ github.workspace }}/ReferencePackageGenerator/README.md" \
              --arg ver "$version" \
-             '.SourcePath = $sp | 
-              .DllTargetPath = $dp | 
-              .NupkgTargetPath = $np | 
-              .ReadmePath = $rp | 
+             '.SourcePath = $sp |
+              .DllTargetPath = $dp |
+              .NupkgTargetPath = $np |
+              .ReadmePath = $rp |
               .SinglePackageVersion = $ver' \
              resonite-config.json > resonite-config-temp.json
-          
+
           mv resonite-config-temp.json resonite-config.json
-          
+
           echo "Config file prepared from Resonite.json"
-          
+
       - name: Generate Reference Package
         run: |
           cd ReferencePackageGenerator
           dotnet run -- "${{ github.workspace }}/resonite-config.json"
-          
+
       - name: Upload Package Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: reference-package-${{ env.BUILD_VERSION }}
           path: output/packages/*.nupkg
           retention-days: 30
-          
+
       - name: Upload DLLs Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: stripped-dlls-${{ env.BUILD_VERSION }}
           path: output/dlls/*.dll
           retention-days: 7
-          
+
       - name: Publish to NuGet
         if: github.event.inputs.publish == 'true' || github.event.client_payload.publish == true
         env:
