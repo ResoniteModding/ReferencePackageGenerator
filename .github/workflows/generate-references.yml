@@ -40,7 +40,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Download Resonite Assemblies
-        uses: hazre/resonite-download-action@4e0e86949c85f22a0a2bcc789881f4da7ae0a821 # v1.0.0
+        uses: hazre/resonite-download-action@a0255ea1241b3245c1e6783aa7a3db24d07e11bb # v1.0.2
         with:
           steam-username: ${{ secrets.STEAM_USERNAME }}
           steam-password: ${{ secrets.STEAM_PASSWORD }}
