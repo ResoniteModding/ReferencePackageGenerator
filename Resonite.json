@@ -190,7 +190,7 @@
   "RepositoryUrl": "https://github.com/ResoniteModding/ReferencePackageGenerator",
   "SourcePath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite",
   "Tags": ["ResoniteModding", "Resonite", "GameModding", "Modding"],
-  "TargetFramework": "net9.0",
+  "TargetFramework": "net10.0",
   "VersionReleaseLabel": null,
   "VersionBoost": "0.0",
   "VersionOverrides": null,
