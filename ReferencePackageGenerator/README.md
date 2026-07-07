@@ -6,7 +6,6 @@ Stripped reference assemblies for the [Resonite](https://store.steampowered.com/
 
 - Reference assemblies stripped of implementation details
 - Non-publicized assemblies for internal API access
-- Elements.Quantity built from a patched fork to remove the unused ExtensionAttribute class that causes warnings ([PR](https://github.com/Yellow-Dog-Man/Elements.Quantity/pull/22))
 - Includes PDB files for debugging support
 - Includes XML documentation files
 - Automatically generated and updated via GitHub Actions

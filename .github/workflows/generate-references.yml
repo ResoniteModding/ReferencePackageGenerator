@@ -107,57 +107,6 @@ jobs:
         if: env.SKIP_WORKFLOW == 'true'
         run: echo "Skipping package generation because this version is already published to NuGet."
 
-      - name: Clone Elements.Quantity from source
-        if: env.SKIP_WORKFLOW != 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: hazre/Elements.Quantity
-          ref: 3965e9f686c271758d4de3431d550b189b185dd2 # main
-          path: elements-quantity
-          persist-credentials: false
-
-      - name: Build Elements.Quantity
-        if: env.SKIP_WORKFLOW != 'true'
-        run: |
-          cd elements-quantity
-          dotnet build -c Release
-          echo "Elements.Quantity built successfully"
-
-      - name: Replace Elements.Quantity DLLs and PDBs
-        if: env.SKIP_WORKFLOW != 'true'
-        run: |
-          echo "Finding built Elements.Quantity files..."
-          built_dll=$(find elements-quantity -name "Elements.Quantity.dll" -path "*/bin/Release/*" | head -1)
-          built_pdb=$(find elements-quantity -name "Elements.Quantity.pdb" -path "*/bin/Release/*" | head -1)
-
-          if [ -z "$built_dll" ]; then
-            echo "Error: Could not find built Elements.Quantity.dll"
-            exit 1
-          fi
-
-          echo "Found built DLL at: $built_dll"
-
-          if [ -n "$built_pdb" ]; then
-            echo "Found built PDB at: $built_pdb"
-          else
-            echo "Warning: Could not find Elements.Quantity.pdb"
-          fi
-
-          # Find and replace all Elements.Quantity.dll files in resonite-assemblies
-          find resonite-assemblies -name "Elements.Quantity.dll" -type f | while read -r dll_path; do
-            echo "Replacing DLL: $dll_path"
-            cp "$built_dll" "$dll_path"
-
-            # If PDB exists, copy it to the same directory as the DLL
-            if [ -n "$built_pdb" ]; then
-              pdb_dest="$(dirname "$dll_path")/Elements.Quantity.pdb"
-              echo "Copying PDB to: $pdb_dest"
-              cp "$built_pdb" "$pdb_dest"
-            fi
-          done
-
-          echo "All Elements.Quantity files replaced successfully"
-
       - name: Prepare Config
         if: env.SKIP_WORKFLOW != 'true'
         env:
