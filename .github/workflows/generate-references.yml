@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: "10.0.x"
 
@@ -109,7 +109,7 @@ jobs:
 
       - name: Clone Elements.Quantity from source
         if: env.SKIP_WORKFLOW != 'true'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: hazre/Elements.Quantity
           ref: 3965e9f686c271758d4de3431d550b189b185dd2 # main
@@ -193,13 +193,13 @@ jobs:
 
       - name: Attest Build Provenance
         if: env.SKIP_WORKFLOW != 'true'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373
         with:
           subject-path: output/packages/${{ env.PACKAGE_NAME }}.nupkg
 
       - name: Upload Package Artifact
         if: env.SKIP_WORKFLOW != 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reference-package-${{ env.BUILD_VERSION }}
           path: output/packages/*.nupkg
@@ -207,7 +207,7 @@ jobs:
 
       - name: Upload DLLs Artifact
         if: env.SKIP_WORKFLOW != 'true'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stripped-dlls-${{ env.BUILD_VERSION }}
           path: output/dlls/*.dll
