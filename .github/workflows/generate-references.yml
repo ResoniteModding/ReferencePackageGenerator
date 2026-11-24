@@ -37,7 +37,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "11.0.x"
 
       - name: Download Resonite Assemblies
         uses: hazre/resonite-download-action@a0255ea1241b3245c1e6783aa7a3db24d07e11bb # v1.0.2
