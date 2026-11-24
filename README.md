@@ -16,7 +16,7 @@ Fork of [ReferencePackageGenerator](https://github.com/MonkeyModdingTroop/Refere
 ## Installation
 
 ### Prerequisites
-- .NET 9.0 SDK or later
+- .NET 11.0 SDK or later
 - Windows, Linux, or macOS
 
 ### Building from Source
@@ -57,7 +57,7 @@ The tool uses JSON configuration files to control its behavior. If a config file
   "SinglePackageMode": true,
   "SinglePackageName": "GameLibs",
   "SinglePackageVersion": "2025.8.27.954",
-  "TargetFramework": "net9.0",
+  "TargetFramework": "net11.0",
   "Recursive": true,
   "Authors": ["ResoniteModding"],
   "Tags": ["ResoniteModding", "Resonite", "GameModding", "Modding"],
@@ -98,7 +98,7 @@ The tool uses JSON configuration files to control its behavior. If a config file
 - **SinglePackageMode**: Bundle all assemblies into one package (true) or create individual packages (false)
 - **SinglePackageName**: Name for the single package when SinglePackageMode is enabled
 - **SinglePackageVersion**: Version for the single package (e.g., "1.0.0")
-- **TargetFramework**: Target framework for the package (e.g., "net9.0")
+- **TargetFramework**: Target framework for the package (e.g., "net11.0")
 - **Authors**: List of package authors
 - **Tags**: List of NuGet package tags
 
